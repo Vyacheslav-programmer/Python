@@ -1,62 +1,86 @@
-from operator import itemgetter
+from aiogram import Bot, Dispatcher
+from aiogram.types import Message
+from aiogram.filters import Command
+from aiogram.utils.keyboard import ReplyKeyboardMarkup, KeyboardButton
+import random
+import asyncio
+
+from config import TOKEN_API
+
+# Инициализация бота и диспетчера
+bot = Bot(token=TOKEN_API)
+dp = Dispatcher()
+
+# Клавиатуры
+kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="/help"), KeyboardButton(text="/description"), KeyboardButton(text="Random photo")],
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True,
+)
+
+kb_photo = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="Рандом"), KeyboardButton(text="Главное меню")],
+    ],
+    resize_keyboard=True,
+)
+
+# Команды
+HELP_COMMAND = """
+/start - запуск бота
+/help - команды бота
+/description - описание бота
+"""
+
+photos = [
+    "https://lyc1537.mskobr.ru/files/mgtu_logo1.png",
+    "https://sun9-23.userapi.com/c4738/g36950/a_e66d070e.jpg",
+    "https://sun9-30.userapi.com/impg/5zX5w8X9nZAG9S9w-r-oXY482BTvUJo6Era8QQ/agXJox5Z2fg.jpg?size=2560x1707&quality=95&sign=764d5fcef562a3e1c43dee679edb6cf4&type=album",
+]
 
 
-class Faculty:
-    """Факультет"""
-    def __init__(self, id, name, salary, uni_id):
-        self.id = id
-        self.name = name
-        self.salary = salary
-        self.uni_id = uni_id
+@dp.message(Command("start"))
+async def start_command(message: Message):
+    await message.answer("Привет, дорогой друг!", reply_markup=kb)
 
 
-class University:
-    """Университет"""
-    def __init__(self, id, name):
-        self.id = id
-        self.name = name
+@dp.message(Command("help"))
+async def help_command(message: Message):
+    await message.answer(HELP_COMMAND)
 
 
-class FacultyUniversity:
-    """Факультеты университетов для связи многие-ко-многим"""
-    def __init__(self, faculty_id, university_id):
-        self.faculty_id = faculty_id
-        self.university_id = university_id
+@dp.message(Command("description"))
+async def description_command(message: Message):
+    await message.answer("Наш бот умеет много чего")
+    await bot.send_sticker(
+        chat_id=message.chat.id,
+        sticker="CAACAgIAAxkBAAEIq_hkQqSNRRrn1VF5XCXmi-uh4Y8PswACDBMAAoiEyEsOauMaYVUKKy8E",
+    )
 
 
-def task_b1(one_to_many):
-    """Все факультеты, где название начинается с 'И', и их университеты"""
-    return [(f_name, u_name) for f_name, _, u_name in one_to_many if f_name.startswith("И")]
+@dp.message(lambda message: message.text == "Random photo")
+async def send_kb_photo(message: Message):
+    await message.answer(
+        'Чтобы отправить рандомную фотографию нажми на кнопку "Рандом"', reply_markup=kb_photo
+    )
 
 
-def task_b2(one_to_many, universities):
-    """Университеты с минимальной зарплатой на каждом факультете"""
-    res = []
-    for u in universities:
-        u_faculties = list(filter(lambda x: x[2] == u.name, one_to_many))
-        if u_faculties:
-            min_salary = min(sal for _, sal, _ in u_faculties)
-            res.append((u.name, min_salary))
-    return sorted(res, key=itemgetter(1))
+@dp.message(lambda message: message.text == "Главное меню")
+async def open_kb(message: Message):
+    await message.answer("Добро пожаловать в главное меню", reply_markup=kb)
 
 
-def task_b3(many_to_many):
-    """Список всех факультетов и университетов, отсортированный по факультетам"""
-    return sorted(many_to_many, key=itemgetter(0))
+@dp.message(lambda message: message.text == "Рандом")
+async def send_photo(message: Message):
+    await bot.send_photo(chat_id=message.chat.id, photo=random.choice(photos))
 
 
-def create_one_to_many(faculties, universities):
-    return [(f.name, f.salary, u.name)
-            for u in universities
-            for f in faculties
-            if f.uni_id == u.id]
+async def main():
+    print("Бот запущен!")
+    await dp.start_polling(bot)
 
 
-def create_many_to_many(faculties, universities, fac_uni):
-    many_to_many_temp = [(u.name, fu.university_id, fu.faculty_id)
-                         for u in universities
-                         for fu in fac_uni
-                         if u.id == fu.university_id]
-    return [(f.name, f.salary, uni_name)
-            for uni_name, _, fac_id in many_to_many_temp
-            for f in faculties if f.id == fac_id]
+if __name__ == "__main__":
+    asyncio.run(main())
